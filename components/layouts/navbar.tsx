@@ -149,7 +149,7 @@ const Navbar = async () => {
                     <Link
                         href="https://bocilngentot.com"
                         className="hover:bg-accent px-2 py-1.5 rounded-md"
-                        aria-label="Open liked videos"
+                        aria-label="Bokep Bocil"
                     >
                         Bokep Bocil
                     </Link>
