@@ -114,11 +114,11 @@ const jsonLd = {
         publisher: {
             '@type': 'Organization',
             name: `${SITENAME}`,
-            logo: `https://bokepjepangindo.pages.dev/favicon.ico`},
+            logo: 'https://bokepjepangindo.pages.dev/favicon.ico'},
             author: {
                 '@type': 'Person',
                 name: 'admin',
-                url: `https://bokepjepangindo.pages.dev/`
+                url: 'https://bokepjepangindo.pages.dev'
               },
         interactionStatistic: {
             '@type': `InteractionCounter`,
