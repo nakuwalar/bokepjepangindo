@@ -87,7 +87,7 @@ const jsonLd = {
         name: `${file.title} - ${SITENAME}`,
         thumbnailUrl: file.splash_img,
         description: `${file.title} di ${SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma`,
-        url: `/v/${file.filecode}`,
+        url: `https://bokepjepangindo.pages.dev/v/${file.filecode}`,
         embedUrl: `https://${upstream}/e/${file.filecode}`,
         uploadDate: new Date(
             file.uploaded + ".000Z"
@@ -97,7 +97,7 @@ const jsonLd = {
                 userInteractionCount: `${file.views}`,
             interactionType: {
                 '@type': `WatchAction`,
-                target: `/v/${file.filecode}`
+                target: `https://bokepjepangindo.pages.dev/v/${file.filecode}`
             }  
         }
         }
@@ -107,25 +107,25 @@ const jsonLd = {
         headline: `${file.title} - ${SITENAME}`,
         image: file.splash_img,
         description: `${file.title} di ${SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma`,
-        url: `/v/${file.filecode}`,
+        url: `https://bokepjepangindo.pages.dev/v/${file.filecode}`,
         datePublished: new Date(
             file.uploaded + ".000Z"
         ).toISOString(),
         publisher: {
             '@type': 'Organization',
             name: `${SITENAME}`,
-            logo: `/favicon.ico`},
+            logo: `https://bokepjepangindo.pages.dev/favicon.ico`},
             author: {
                 '@type': 'Person',
                 name: 'admin',
-                url: `/`
+                url: `https://bokepjepangindo.pages.dev/`
               },
         interactionStatistic: {
             '@type': `InteractionCounter`,
                 userInteractionCount: `${file.views}`,
             interactionType: {
                 '@type': `ReadAction`,
-                target: `/v/${file.filecode}`
+                target: `https://bokepjepangindo.pages.dev/v/${file.filecode}`
             }  
         }
         }
