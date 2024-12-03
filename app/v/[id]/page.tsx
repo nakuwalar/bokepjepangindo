@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Metadata, ResolvingMetadata } from "next";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { humanDuration, humanSize } from "@/lib/utils";
+import Script from "next/script";
 
 import { Button } from "@/components/ui/button";
 import CopyButton from "@/components/copy-button";
@@ -39,7 +40,7 @@ export async function generateMetadata(
     }
 
     const file = data.result[0];
-    const title = `${file.title} - ${SITENAME}`;
+    const title = `${file.title}`;
     const description = `${file.title} di ${SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma`;
     const image = file.splash_img;
     const previousOgImages = (await parent).openGraph?.images || [];
@@ -84,11 +85,11 @@ export default async function Video({ params }: PageProps) {
 const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'VideoObject',
-        name: `${file.title} - ${SITENAME}`,
+        name: `${file.title}`,
         thumbnailUrl: file.splash_img,
         description: `${file.title} di ${SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma`,
         url: `https://bokepjepangindo.pages.dev/v/${file.filecode}`,
-        embedUrl: `https://${upstream}/e/${file.filecode}`,
+        embedUrl: `https://doodstream.com/e/${file.filecode}`,
         uploadDate: new Date(
             file.uploaded + ".000Z"
         ).toISOString(),
@@ -104,7 +105,7 @@ const jsonLd = {
         const jsonLd2 = {
         '@context': 'https://schema.org',
         '@type': 'Article',
-        headline: `${file.title} - ${SITENAME}`,
+        headline: `${file.title}`,
         image: file.splash_img,
         description: `${file.title} di ${SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma`,
         url: `https://bokepjepangindo.pages.dev/v/${file.filecode}`,
@@ -132,7 +133,7 @@ const jsonLd = {
         const jsonLd3 = {
             '@context': 'https://schema.org', 
             '@type': 'Book', 
-            'name': `${file.title} - ${SITENAME}`, 
+            'name': `${file.title}`, 
             'aggregateRating': {
             '@type': 'AggregateRating',	
                 'ratingValue': '5',	
@@ -160,7 +161,7 @@ const jsonLd = {
         </section>
             <iframe
                 className="w-full h-[30vh] md:h-[55vh] lg:h-[70vh]"
-                src={`https://ds2play.com/e/${file.filecode}`}
+                src={`https://doodstream.com/e/${file.filecode}`}
                 scrolling="no"
                 title={file.title}
                 frameBorder={0}
@@ -174,6 +175,7 @@ const jsonLd = {
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-flow-row lg:grid-flow-col">
+            <p>Video bokep indo terbaru viral {file.title} di {SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma korea china tante live paksa ngentot abg cewek pelajar pijat Hijab Abg Colmek Film Tante Hot Twitter Asia Download Live stw situs indonesia nonton link sd crot playbokep simontok bokepin montok baru perawan anak kecil telegram selingkuh ojol cantik gay vidio lokal artis pelajar janda streaming jepang barat korea japan jav cina japanese china rusia arab india thailand hd anime hentai bokepind gudang avtub pijat sotwe rumah pemerkosaan inggris xpanas pure tobrut vcs ngintip binor remaja yandex update perselingkuhan wiki raja full com porno indoh</p>
                         <Table>
                             <TableBody>
                                 <TableRow>
@@ -214,33 +216,13 @@ const jsonLd = {
                                 </TableRow>
                             </TableBody>
                         </Table>
-                        <div className="grid grid-cols-2 gap-2 mt-8 md:grid-cols-3 lg:grid-cols-2 lg:ml-4 lg:my-4">
-                            <Link
-                                href={`https://${upstream}/d/${file.filecode}`}
-                                className="col-span-full md:col-auto lg:col-span-full"
-                            >
-                                <Button className="w-full">
-                                    <DownloadIcon className="size-4 me-1 mb-1"></DownloadIcon>
-                                    Download
-                                </Button>
-                            </Link>
-                            <CopyButton className="bg-secondary lg:col-span-full">
-                                <Share1Icon className="size-4 me-1 mb-0.5"></Share1Icon>
-                                Share
-                            </CopyButton>
-                            <LikeButton
-                                className="lg:col-span-full"
-                                useButton={true}
-                                file={file}
-                            />
-                        </div>
                     </div>
                 </CardContent>
             </Card>
-            <p>Video bokep indo terbaru viral {file.title} di {SITENAME} Video Bokep Indo Jepang Jav Barat Simontok Viral Terbaru Bocil Ngentot Jilbab Smp Mama Sma korea china tante live paksa ngentot abg cewek pelajar pijat Hijab Abg Colmek Film Tante Hot Twitter Asia Download Live stw situs indonesia nonton link sd crot playbokep simontok bokepin montok baru perawan anak kecil telegram selingkuh ojol cantik gay vidio lokal artis pelajar janda streaming jepang barat korea japan jav cina japanese china rusia arab india thailand hd anime hentai bokepind gudang avtub pijat sotwe rumah pemerkosaan inggris xpanas pure tobrut vcs ngintip binor remaja yandex update perselingkuhan wiki raja full com porno indoh</p>
             <h2 className="text-2xl font-bold text-center my-4">
                 Related Video {file.title}
             </h2>
+<Script src="https://js.juicyads.com/jp.php?c=947403z2v256s2x2w264x294&u=http%3A%2F%2Fwww.juicyads.rocks"/>
             <SearchCardList query={file.title.split(" ")[2]} />
         </div>
     );
