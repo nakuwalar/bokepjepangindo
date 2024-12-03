@@ -146,13 +146,6 @@ const Navbar = async () => {
             </div>
             <div className="flex flex-row space-x-2">
                 <div className="hidden md:flex items-center gap-4">
-                    <Link
-                        href="https://bocilngentot.com"
-                        className="hover:bg-accent px-2 py-1.5 rounded-md"
-                        aria-label="Bokep Bocil"
-                    >
-                        Bokep Bocil
-                    </Link>
                     <NavMenu folders={folders}></NavMenu>
                 </div>
                 <SearchInput className="hidden md:block w-full md:w-[260px] lg:w-[300px]" />
