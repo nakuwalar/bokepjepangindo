@@ -1,0 +1,138 @@
+---
+// src/pages/category/[slug]/[page].astro
+import Layout from '../../../layouts/BaseLayout.astro';
+import VideoCard from '../../../components/VideoCard.astro';
+import { getAllVideos, type VideoData } from '../../../utils/data.ts';
+import { slugify } from '../../../utils/slugify';
+import { nama } from '../../../utils/site.ts';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const allVideos: VideoData[] = await getAllVideos();
+  const videosPerPage = 40;
+
+  const paths = [];
+  const categories: { [key: string]: VideoData[] } = {};
+
+  allVideos.forEach(video => {
+    if (!categories[video.category]) {
+      categories[video.category] = [];
+    }
+    categories[video.category].push(video);
+  });
+
+  for (const categoryName in categories) {
+    const categorySlug = slugify(categoryName);
+    const categoryVideos = categories[categoryName];
+    const totalPages = Math.ceil(categoryVideos.length / videosPerPage);
+
+    for (let i = 1; i <= totalPages; i++) {
+      const startIndex = (i - 1) * videosPerPage;
+      const endIndex = startIndex + videosPerPage;
+      const paginatedVideosForPage = categoryVideos.slice(startIndex, endIndex);
+
+      const preconnectDomainsForPage = new Set<string>();
+      paginatedVideosForPage.forEach(video => {
+        try {
+          if (video.thumbnail) {
+            preconnectDomainsForPage.add(new URL(video.thumbnail).origin);
+          }
+          if (video.embedUrl) {
+            preconnectDomainsForPage.add(new URL(video.embedUrl).origin);
+          }
+        } catch (e) {
+          console.error(`[ERROR] URL tidak valid untuk video ID "${video.id}" di kategori "${video.category}" (paginasi kategori):`, e);
+        }
+      });
+
+      paths.push({
+        params: {
+          slug: categorySlug,
+          page: i.toString(),
+        },
+        props: {
+          categoryName,
+          currentPage: i,
+          totalPages,
+          videos: paginatedVideosForPage,
+          preconnectDomains: Array.from(preconnectDomainsForPage),
+        },
+      });
+    }
+  }
+  return paths;
+}
+
+const { categoryName, currentPage, totalPages, videos: paginatedVideos, preconnectDomains } = Astro.props;
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Category', url: '/category/' },
+  { name: `${categoryName} | Page ${currentPage}`, url: `/category/${slugify(categoryName)}/${currentPage}` },
+];
+---
+
+<Layout
+  title={`${categoryName} | Page ${currentPage} | ${nama}`}
+  description={`Kumpulan video Category ${categoryName}, Page ${currentPage} di ${nama}.`}
+  preconnectDomains={preconnectDomains}
+>
+  <main class="category-page" itemscope itemtype="http://schema.org/CollectionPage">
+    <meta itemprop="name" content={`${categoryName} - Page ${currentPage} di ${nama}`} />
+    <meta itemprop="description" content={`Kumpulan video kategori ${categoryName}, Page ${currentPage} di ${nama}.`} />
+    <meta itemprop="url" content={Astro.url.href} />
+    {/* Jika ada gambar representatif untuk kategori ini, tambahkan itemprop="image" */}
+    {/* <link itemprop="image" href="/path/to/category-image.jpg" /> */}
+
+
+    <nav class="breadcrumb" aria-label="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+      <ol>
+        {breadcrumbs.map((item, index) => (
+          <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+            {index > 0 && <span class="separator">/</span>}
+            {item.url ? (
+              <a itemprop="item" href={item.url}>
+                <span itemprop="name">{item.name}</span>
+              </a>
+            ) : (
+              <span itemprop="name">{item.name}</span>
+            )}
+            <meta itemprop="position" content={(index + 1).toString()} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <h1 class="category-title-header" itemprop="headline">{categoryName} <span class="page-info">(Page {currentPage} dari {totalPages})</span></h1>
+
+    {paginatedVideos.length === 0 ? (
+      <p class="no-videos-in-category">Tidak ada video yang ditemukan dalam kategori ini.</p>
+    ) : (
+      <div class="video-grid">
+        {paginatedVideos.map((video) => (
+          <VideoCard video={video} />
+        ))}
+      </div>
+    )}
+
+    {totalPages > 1 && (
+      <nav class="pagination" aria-label="Navigasi Page Kategori">
+        {currentPage > 1 && (
+          <a href={`/category/${slugify(categoryName)}/${currentPage - 1}`} class="pagination-link">&laquo; Sebelumnya</a>
+        )}
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+          <a
+            href={`/category/${slugify(categoryName)}/${page}`}
+            class={`pagination-link ${page === currentPage ? 'active' : ''}`}
+          >
+            {page}
+          </a>
+        ))}
+        {currentPage < totalPages && (
+          <a href={`/category/${slugify(categoryName)}/${currentPage + 1}`} class="pagination-link">Berikutnya &raquo;</a>
+        )}
+      </nav>
+    )}
+  </main>
+</Layout>

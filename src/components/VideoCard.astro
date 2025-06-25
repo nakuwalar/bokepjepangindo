@@ -1,0 +1,72 @@
+---
+// src/components/VideoCard.astro
+import { slugify } from '../utils/slugify';
+import type { VideoData } from '../utils/data';
+
+export interface Props {
+  video: VideoData;
+}
+
+const { video } = Astro.props;
+const videoSlug = slugify(video.title);
+
+
+
+---
+
+<a href={`/${videoSlug}-${video.id}/`} class="video-card">
+  <div class="thumbnail-container">
+    <img
+      src={video.thumbnail}
+      alt={video.title}
+      loading="lazy"
+      class="video-thumbnail"
+    />
+    {video.previewUrl && (
+      <video
+        preload="none"
+        loop
+        muted
+        class="video-preview"
+        data-src={video.previewUrl}
+        onerror="this.closest('.video-card').classList.add('video-preview-error');"
+      >
+      </video>
+    )}
+  </div>
+  <div class="video-info">
+    <h3 class="video-title">{video.title}</h3>
+    <p class="video-category">{video.category}</p>
+  </div>
+</a>
+
+<script>
+  document.querySelectorAll('.video-card').forEach(card => {
+    const videoPreview = card.querySelector('.video-preview');
+
+    if (videoPreview) {
+      card.addEventListener('mouseenter', () => {
+        // Hanya muat dan mainkan jika kartu tidak memiliki kelas error
+        if (!card.classList.contains('video-preview-error')) {
+          const src = videoPreview.getAttribute('data-src');
+          // Hanya set src jika belum diset untuk menghindari reload yang tidak perlu
+          if (src && videoPreview.src !== src) {
+            videoPreview.src = src;
+            videoPreview.load(); // Memuat video
+          }
+          videoPreview.play().catch(e => {
+            // Tangani error jika pemutaran gagal (misal: autoplay diblokir)
+            console.warn('Video playback failed, adding error class:', e);
+            card.classList.add('video-preview-error'); // Tambahkan kelas error juga jika play() gagal
+          });
+        }
+      });
+
+      card.addEventListener('mouseleave', () => {
+        if (videoPreview && !videoPreview.paused) { // Pastikan videoPreview ada dan sedang tidak paused
+          videoPreview.pause();
+        }
+      });
+    }
+  });
+</script>

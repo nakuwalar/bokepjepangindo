@@ -1,0 +1,200 @@
+---
+// src/pages/video/[query]/[page].astro
+// Page Pencarian Utama dengan Paginasi Berbasis Path Parameter
+import { nama, url, desk } from '../../../utils/site.ts';
+import Layout from '../../../layouts/BaseLayout.astro';
+import VideoCard from '../../../components/VideoCard.astro';
+import { getAllVideos, type VideoData } from '../../../utils/data.ts';
+import { slugify } from '../../../utils/slugify.ts';
+
+export async function getStaticPaths() {
+  return [];
+}
+
+const { query, page } = Astro.params;
+const originalQuery = query ? decodeURIComponent(query) : '';
+const currentPage = page ? parseInt(page) : 1;
+const videosPerPage = 30;
+
+const searchInput = originalQuery.toLowerCase().trim();
+
+const searchWords = searchInput
+    .replace(/-/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 0);
+
+console.log(`[VIDEO PAGE] Kueri asli dari URL: "${originalQuery}"`);
+console.log(`[VIDEO PAGE] Kata-kata pencarian terurai: ${JSON.stringify(searchWords)}`);
+console.log(`[VIDEO PAGE] Page saat ini: ${currentPage}`);
+
+let searchResults: VideoData[] = [];
+let preconnectDomains: string[] = [];
+let totalPages = 1;
+let paginatedResults: VideoData[] = [];
+
+if (searchWords.length > 0) {
+  try {
+    const allVideos: VideoData[] = await getAllVideos();
+
+    searchResults = allVideos.filter(video => {
+      const videoContent = [
+        video.title.toLowerCase(),
+        video.description.toLowerCase(),
+        typeof video.category === 'string' ? video.category.toLowerCase() : '',
+        typeof video.tags === 'string' ? video.tags.toLowerCase() : ''
+      ].join(' ');
+
+      return searchWords.every(word => videoContent.includes(word));
+    });
+
+    searchResults.sort((a, b) => a.title.localeCompare(b.title));
+
+    totalPages = Math.ceil(searchResults.length / videosPerPage);
+    const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+
+    const startIndex = (validCurrentPage - 1) * videosPerPage;
+    const endIndex = startIndex + videosPerPage;
+    paginatedResults = searchResults.slice(startIndex, endIndex);
+
+    console.log(`[VIDEO PAGE] Jumlah total hasil: ${searchResults.length}`);
+    console.log(`[VIDEO PAGE] Total halaman: ${totalPages}`);
+    console.log(`[VIDEO PAGE] Hasil paginasi di Page ${validCurrentPage}: ${paginatedResults.length} video`);
+
+    if (paginatedResults.length > 0) {
+      const domainsSet = new Set<string>();
+      paginatedResults.forEach(video => {
+        try {
+          if (video.thumbnail) domainsSet.add(new URL(video.thumbnail).origin);
+          if (video.embedUrl) domainsSet.add(new URL(video.embedUrl).origin);
+        } catch (e) {
+          console.error(`[ERROR] URL tidak valid di JSON untuk video ID ${video.id} (pencarian paginasi):`, e);
+        }
+      });
+      preconnectDomains = Array.from(domainsSet);
+    }
+
+  } catch (error) {
+    console.error('[VIDEO PAGE ERROR] Gagal melakukan pencarian:', error);
+    searchResults = [];
+    paginatedResults = [];
+  }
+}
+
+// *** PATH CHANGE: Updated baseSearchUrl to use '/video' ***
+const baseSearchUrl = `/video/${originalQuery}`;
+
+// Fungsi helper untuk mengkapitalisasi huruf pertama setiap kata
+function capitalizeWords(str: string): string {
+  const words = str
+    .replace(/-/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 0);
+
+  return words.map(word => {
+    if (word.length === 0) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+const displayQuery = capitalizeWords(originalQuery);
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: `${displayQuery} di ${nama}`, url: null },
+];
+---
+
+<Layout
+  title={`${displayQuery} di ${nama} | Page ${currentPage}`}
+  description={`${displayQuery} ${desk} di ${nama}. Page ${currentPage}.`}
+  preconnectDomains={preconnectDomains}
+>
+  <main class="search-page" itemscope itemtype="http://schema.org/SearchResultsPage">
+    <meta itemprop="url" content={Astro.url.href} />
+    <meta itemprop="name" content={`${displayQuery} di ${nama} | Page ${currentPage}`} />
+    <meta itemprop="description" content={`${displayQuery} ${desk} di ${nama}. Page ${currentPage} dari total ${totalPages} halaman.`} />
+    <meta itemprop="encodingFormat" content="text/html" />
+    <meta itemprop="numberOfItems" content={searchResults.length.toString()} />
+    <meta itemprop="about" content={originalQuery} />
+
+
+    <nav class="breadcrumb" aria-label="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+      <ol>
+        {breadcrumbs.map((item, index) => (
+          <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+            {index > 0 && <span class="separator">/</span>}
+            {item.url ? (
+              <a itemprop="item" href={item.url}>
+                <span itemprop="name">{item.name}</span>
+              </a>
+            ) : (
+              <span itemprop="name">{item.name}</span>
+            )}
+            <meta itemprop="position" content={(index + 1).toString()} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+    <h1 class="search-results-title" itemprop="headline">{`${displayQuery} di ${nama}`}</h1>
+
+
+    {originalQuery === '' ? (
+      <p class="no-results-message">
+        Silakan masukkan kata kunci di kolom pencarian di atas untuk memulai pencarian video.
+      </p>
+    ) : paginatedResults.length === 0 ? (
+      <p class="no-results-message">
+        Maaf, tidak ada video yang cocok dengan pencarian Anda. Coba kata kunci lain.
+      </p>
+    ) : (
+      <div class="video-grid" itemprop="mainContentOfPage">
+        {paginatedResults.map((video) => (
+          <VideoCard video={video} videoDetailPath={`/${video.id}/${slugify(video.title)}`} />
+        ))}
+      </div>
+    )}
+
+    {totalPages > 1 && (
+      <nav class="pagination" aria-label="Navigasi Page Pencarian">
+        {currentPage > 1 && (
+          <a href={`${baseSearchUrl}/${currentPage - 1}`} class="pagination-link">&laquo; {displayQuery}</a>
+        )}
+        {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p =>
+          p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2)
+        ).map(pageNumber => (
+          <a
+            href={`${baseSearchUrl}/${pageNumber}`}
+            class={`pagination-link ${pageNumber === currentPage ? 'active' : ''}`}
+          >
+            {pageNumber}
+          </a>
+        ))}
+        {(currentPage + 2 < totalPages && totalPages > 5) && (currentPage < totalPages - 2) && <span class="pagination-link ellipsis">...</span>}
+        {currentPage < totalPages && (
+          <a href={`${baseSearchUrl}/${currentPage + 1}`} class="pagination-link">Next &raquo;</a>
+        )}
+      </nav>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .no-results-message {
+    text-align: center;
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+    background-color: var(--accent-color);
+    color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: calc(var(--spacing-unit) * 2) auto;
+    max-width: 600px;
+    box-shadow: var(--shadow-light);
+  }
+
+  .pagination-link.ellipsis {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--secondary-color);
+    cursor: default;
+  }
+</style>

@@ -1,0 +1,146 @@
+---
+// src/pages/index.astro
+import Layout from '../layouts/BaseLayout.astro';
+import VideoCard from '../components/VideoCard.astro';
+import { slugify } from '../utils/slugify';
+import { getAllVideos, type VideoData } from '../utils/data';
+import { nama, desk, url } from '../utils/site.ts';
+export const prerender = true;
+
+const allVideos: VideoData[] = await getAllVideos();
+
+const videosByCategory: { [key: string]: VideoData[] } = {};
+const numberOfVideosPerCategory = 15;
+
+allVideos.forEach(video => {
+  if (!videosByCategory[video.category]) {
+    videosByCategory[video.category] = [];
+  }
+  if (videosByCategory[video.category].length < numberOfVideosPerCategory) {
+    videosByCategory[video.category].push(video);
+  }
+});
+
+const sortedCategories = Object.keys(videosByCategory).sort();
+
+const numberOfRandomVideos = 15;
+
+const categoryVideoIds = new Set(
+  Object.values(videosByCategory).flat().map(v => v.id)
+);
+
+const videosForRandomSelection = allVideos.filter(video =>
+  !categoryVideoIds.has(video.id)
+);
+
+const randomVideos = videosForRandomSelection
+  .sort(() => 0.5 - Math.random())
+  .slice(0, numberOfRandomVideos);
+
+const allDomains = new Set<string>();
+
+Object.values(videosByCategory).flat().forEach(video => {
+  try {
+    if (video.thumbnail) {
+      allDomains.add(new URL(video.thumbnail).origin);
+    }
+    if (video.embedUrl) {
+      allDomains.add(new URL(video.embedUrl).origin);
+    }
+  } catch (e) {
+    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${video.id} (videosByCategory):`, e);
+  }
+});
+
+randomVideos.forEach(video => {
+  try {
+    if (video.thumbnail) {
+      allDomains.add(new URL(video.thumbnail).origin);
+    }
+    if (video.embedUrl) {
+      allDomains.add(new URL(video.embedUrl).origin);
+    }
+  } catch (e) {
+    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${video.id} (randomVideos):`, e);
+  }
+});
+
+const preconnectDomains = Array.from(allDomains);
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+];
+
+const currentUrl = url;
+const siteName = nama;
+const siteDescription = desk;
+
+
+---
+
+<Layout
+  title={`${nama} - Video Bokep Indo Terbaru`}
+  description={siteDescription}
+  preconnectDomains={preconnectDomains}
+  siteName={siteName}
+  siteUrl={currentUrl}
+>
+
+  <main class="home-page" itemscope itemtype="http://schema.org/WebPage">
+    <meta itemprop="url" content={currentUrl} />
+    <meta itemprop="name" content={`${nama} - Video Bokep Indo Terbaru`} />
+    <meta itemprop="description" content={desk} />
+    <div itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content={siteName} />
+      <div itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
+        <meta itemprop="url" content={`${currentUrl}/logo.png`} />
+      </div>
+    </div>
+    <meta itemprop="datePublished" content="2025-06-21T00:00:00Z" />
+    <meta itemprop="dateModified" content={new Date().toISOString()} />
+
+    <section class="hero-section">
+      <h1 itemprop="headline">Selamat Datang di {nama}!</h1>
+      <p itemprop="description">{desk} Tonton Sekarang Juga!</p>
+    </section>
+
+      <section class="random-videos-section">
+    {randomVideos.length > 0 && (
+        <h2 class="section-title">Video Pilihan</h2><div class="video-grid">
+          {randomVideos.map((video) => (
+            <VideoCard video={video} />
+          ))}
+        </div>
+      </section>
+    )}
+
+<section class="all-categories-section">
+      {sortedCategories.length === 0 ? (
+        <p class="no-videos-overall">Belum ada video yang tersedia di portal ini.</p>
+      ) : (
+        sortedCategories.map(categoryName => (
+          <div class="category-group">
+            <h2 class="category-title">
+              <a href={`/category/${slugify(categoryName)}/1`} class="category-link">
+                {categoryName} &rarr;</a>
+            </h2>
+            <div class="video-grid">
+              {videosByCategory[categoryName].length === 0 ? (
+                <p class="no-videos-in-category">Tidak ada video dalam kategori ini.</p>
+              ) : (
+                videosByCategory[categoryName].map((video) => (
+                  <VideoCard video={video} />
+                ))
+              )}
+            </div>
+            {allVideos.filter(v => v.category === categoryName).length > numberOfVideosPerCategory && (
+              <div class="view-all-button-container">
+                <a href={`/category/${slugify(categoryName)}/1`} class="view-all-button">Lihat Semua di kategori {categoryName}</a>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </section>
+  </main>
+</Layout>

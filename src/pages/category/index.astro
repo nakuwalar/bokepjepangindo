@@ -1,0 +1,93 @@
+---
+// src/pages/category/index.astro
+import Layout from '../../layouts/BaseLayout.astro';
+import { getAllVideos, type VideoData } from '../../utils/data'; // Import VideoData
+import { slugify } from '../../utils/slugify';
+import { nama } from '../../utils/site.ts';
+export const prerender = true;
+
+const allVideos: VideoData[] = await getAllVideos(); // Tetapkan tipe VideoData
+
+// Mendapatkan daftar kategori unik dan menghitung jumlah video per kategori
+const categoryData: { [key: string]: { count: number; thumbnail: string | null; } } = {};
+
+allVideos.forEach(video => {
+  if (!categoryData[video.category]) {
+    categoryData[video.category] = {
+      count: 0,
+      thumbnail: null // Inisialisasi thumbnail sebagai null
+    };
+  }
+  categoryData[video.category].count++;
+
+  // Ambil thumbnail dari video pertama yang ditemukan untuk kategori ini
+  // Anda bisa mengubah logika ini jika ingin thumbnail yang berbeda (misal: yang paling populer)
+  if (!categoryData[video.category].thumbnail && video.thumbnail) {
+    categoryData[video.category].thumbnail = video.thumbnail;
+  }
+});
+
+// Konversi ke array objek untuk iterasi dan urutkan
+const categories = Object.keys(categoryData)
+  .map(categoryName => ({
+    name: categoryName,
+    count: categoryData[categoryName].count,
+    slug: slugify(categoryName),
+    thumbnail: categoryData[categoryName].thumbnail // Sertakan thumbnail
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name)); // Urutkan berdasarkan nama kategori
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Category', url: '/category/' },
+];
+---
+
+<Layout
+  title={`Daftar Kategori Video | ${nama}`}
+  description={`Jelajahi berbagai kategori video yang tersedia di ${nama}`}
+>
+  <main class="categories-list-page">
+    <nav class="breadcrumb" aria-label="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+      <ol>
+        {breadcrumbs.map((item, index) => (
+          <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+            {index > 0 && <span class="separator">/</span>}
+            {item.url ? (
+              <a itemprop="item" href={item.url}>
+                <span itemprop="name">{item.name}</span>
+              </a>
+            ) : (
+              <span itemprop="name">{item.name}</span>
+            )}
+            <meta itemprop="position" content={(index + 1).toString()} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <h1 class="page-title">Semua Kategori Video di {nama}</h1>
+
+    {categories.length === 0 ? (
+      <p class="no-categories">Tidak ada kategori video yang tersedia saat ini.</p>
+    ) : (
+      <div class="category-list">
+        {categories.map(category => (
+          <a href={`/category/${category.slug}/1`} class="category-item">
+            {category.thumbnail && (
+              <div class="video-grid">
+                <img
+                  src={category.thumbnail}
+                  alt={`Thumbnail untuk kategori ${category.name}`}
+                  loading="lazy"
+                  width="300" height="169" />
+              </div>
+            )}
+            <h2 class="category-item-title">{category.name}</h2>
+            <p class="category-item-count">{category.count} Video</p>
+          </a>
+        ))}
+      </div>
+    )}
+  </main>
+</Layout>

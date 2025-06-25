@@ -1,0 +1,142 @@
+---
+// src/pages/tags/index.astro
+// Halaman indeks yang menampilkan semua tags unik
+
+import Layout from '../../layouts/BaseLayout.astro';
+import { getAllVideos, type VideoData } from '../../utils/data.ts';
+import { slugify } from '../../utils/slugify.ts';
+import { nama, url } from '../../utils/site.ts'; // Opsional, jika digunakan untuk meta
+export const prerender = true;
+
+// Ambil semua tags unik saat build time
+const allVideos: VideoData[] = await getAllVideos();
+const uniqueTags = new Set<string>();
+
+allVideos.forEach(video => {
+  if (typeof video.tags === 'string') {
+    video.tags.split(',').forEach(tag => {
+      const trimmedTag = tag.trim();
+      if (trimmedTag.length > 0) {
+        uniqueTags.add(trimmedTag); // Simpan tag asli (tanpa lowercase di sini, agar display tetap sesuai aslinya)
+      }
+    });
+  }
+});
+
+// Konversi Set ke Array dan urutkan secara alfabetis
+const sortedTags = Array.from(uniqueTags).sort((a, b) => a.localeCompare(b));
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Semua Tags', url: '/tags' },
+];
+
+// Anda bisa menghitung preconnect domains jika Anda menampilkan sesuatu yang memerlukan koneksi eksternal
+// Misalnya, jika ada gambar atau ikon di halaman tags ini
+let preconnectDomains: string[] = [];
+// ... (logika opsional untuk preconnectDomains jika ada)
+---
+
+<Layout
+  title={`Semua Tags - ${nama}`}
+  description={`Jelajahi daftar lengkap tags yang tersedia di situs ${nama}.`}
+  preconnectDomains={preconnectDomains}
+  siteName={nama}
+  siteUrl={url}
+>
+  <main class="tags-index-page">
+    <nav class="breadcrumb" aria-label="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+      <ol>
+        {breadcrumbs.map((item, index) => (
+          <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+            {index > 0 && <span class="separator">/</span>}
+            {item.url ? (
+              <a itemprop="item" href={item.url}>
+                <span itemprop="name">{item.name}</span>
+              </a>
+            ) : (
+              <span itemprop="name">{item.name}</span>
+            )}
+            <meta itemprop="position" content={(index + 1).toString()} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <h1 class="page-title">Semua Tags</h1>
+
+    {sortedTags.length === 0 ? (
+      <p class="no-tags-message">
+        Tidak ada tags yang ditemukan.
+      </p>
+    ) : (
+      <div class="tags-grid">
+        {sortedTags.map(tag => (
+          <a href={`/video/${slugify(tag)}/`} class="tag-card">
+            {tag}
+          </a>
+        ))}
+      </div>
+    )}
+  </main>
+</Layout>
+
+<style>
+  /* Gaya untuk halaman indeks tags */
+  .tags-index-page {
+    max-width: var(--max-width-content);
+    margin: 0 auto;
+    padding: var(--spacing-unit);
+  }
+
+  .page-title {
+    text-align: center;
+    margin-top: calc(var(--spacing-unit) * 2);
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+    color: var(--text-color);
+  }
+
+  .tags-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Sesuaikan ukuran card tag */
+    gap: var(--spacing-unit);
+    padding: var(--spacing-unit);
+    justify-content: center; /* Pusatkan jika tidak memenuhi grid */
+  }
+
+  .tag-card {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: calc(var(--spacing-unit) * 1);
+    background-color: var(--background-color-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: bold;
+    font-size: 1.1em;
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+    min-height: 80px; /* Tinggi minimal untuk card tag */
+  }
+
+  .tag-card:hover {
+    background-color: var(--hover-color);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+  }
+
+  .no-tags-message {
+    text-align: center;
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+    background-color: var(--accent-color);
+    color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: calc(var(--spacing-unit) * 2) auto;
+    max-width: 600px;
+    box-shadow: var(--shadow-light);
+  }
+</style>

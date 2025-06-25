@@ -1,0 +1,259 @@
+---
+// src/pages/[slug].astro
+
+import Layout from '../layouts/BaseLayout.astro';
+import VideoCard from '../components/VideoCard.astro';
+import { getAllVideos, type VideoData } from '../utils/data';
+import { slugify } from '../utils/slugify';
+import { nama, url, terbit } from '../utils/site.ts';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const allVideos: VideoData[] = await getAllVideos();
+  return allVideos.map(video => ({
+    params: { slug: `${slugify(video.title)}-${video.id}` },
+    props: { video, allVideos },
+  }));
+}
+
+const { video, allVideos } = Astro.props;
+
+const numberOfRelatedVideos = 15;
+const relatedVideos: VideoData[] = [];
+
+const currentVideoTitleKeywords = video.title
+  .toLowerCase()
+  .split(/\s+/)
+  .filter(word => word.length > 2);
+
+if (relatedVideos.length < numberOfRelatedVideos && currentVideoTitleKeywords.length > 0) {
+  const titleMatchedVideos = allVideos.filter(v => {
+    if (v.id === video.id || relatedVideos.some(rv => rv.id === v.id)) {
+      return false;
+    }
+
+    const otherVideoTitle = v.title.toLowerCase();
+    return currentVideoTitleKeywords.some(keyword => otherVideoTitle.includes(keyword));
+  });
+
+  for (const v of titleMatchedVideos) {
+    if (relatedVideos.length < numberOfRelatedVideos) {
+      relatedVideos.push(v);
+    } else {
+      break;
+    }
+  }
+}
+
+const sameCategoryVideos = allVideos
+  .filter(v =>
+    v.category === video.category &&
+    v.id !== video.id &&
+    !relatedVideos.some(rv => rv.id === v.id)
+  )
+  .sort(() => 0.5 - Math.random());
+
+for (const v of sameCategoryVideos) {
+  if (relatedVideos.length < numberOfRelatedVideos) {
+    relatedVideos.push(v);
+  } else {
+    break;
+  }
+}
+
+if (relatedVideos.length < numberOfRelatedVideos) {
+  const remainingSlots = numberOfRelatedVideos - relatedVideos.length;
+  const otherVideosForRelated = allVideos.filter(v =>
+    v.id !== video.id &&
+    !relatedVideos.some(rv => rv.id === v.id)
+  );
+  const shuffledOthersForRelated = otherVideosForRelated.sort(() => 0.5 - Math.random());
+  relatedVideos.push(...shuffledOthersForRelated.slice(0, remainingSlots));
+}
+
+relatedVideos.sort(() => 0.5 - Math.random());
+
+const numberOfRandomVideos = 15;
+
+const currentAndRelatedVideoIds = new Set([video.id, ...relatedVideos.map(v => v.id)]);
+
+const videosForRandomSelection = allVideos.filter(v => !currentAndRelatedVideoIds.has(v.id));
+
+const randomVideos = videosForRandomSelection
+  .sort(() => 0.5 - Math.random())
+  .slice(0, numberOfRandomVideos);
+
+const allDomains = new Set<string>();
+try {
+  if (video.thumbnail) allDomains.add(new URL(video.thumbnail).origin);
+  if (video.embedUrl) allDomains.add(new URL(video.embedUrl).origin);
+} catch (e) {
+  console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${video.id} (current video):`, e);
+}
+
+relatedVideos.forEach(v => {
+  try {
+    if (v.thumbnail) allDomains.add(new URL(v.thumbnail).origin);
+    if (v.embedUrl) allDomains.add(new URL(v.embedUrl).origin);
+  } catch (e) {
+    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${v.id} (related video):`, e);
+  }
+});
+
+randomVideos.forEach(v => {
+  try {
+    if (v.thumbnail) allDomains.add(new URL(v.thumbnail).origin);
+    if (v.embedUrl) allDomains.add(new URL(v.embedUrl).origin);
+  } catch (e) {
+    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${v.id} (random video):`, e);
+  }
+});
+
+const preconnectDomains = Array.from(allDomains);
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: video.category, url: `/category/${slugify(video.category)}/1` },
+  { name: video.title },
+];
+
+const datePublished = video.datePublished || terbit;
+const dateModified = video.dateModified || new Date().toISOString();
+
+const schemaWebPage = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "url": `${url}/${slugify(video.title)}-${video.id}`,
+  "name": `${video.title} - ${nama}`,
+  "description": video.description,
+  "publisher": {
+    "@type": "Organization",
+    "name": nama,
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${url}/logo.png`
+    }
+  },
+  "datePublished": datePublished,
+  "dateModified": dateModified
+};
+
+const schemaVideoObject = {
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  "name": video.title,
+  "description": video.description,
+  "caption": `Nonton ${video.title} di ${nama}`,
+  "uploadDate": datePublished,
+  "embedUrl": video.embedUrl,
+  "thumbnailUrl": video.thumbnail,
+  "width": "1920",
+  "height": "1080",
+  "publisher": {
+    "@type": "Organization",
+    "name": nama,
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${url}/logo.png`
+    }
+  },
+};
+
+const schemaBreadcrumb = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": breadcrumbs.map((item, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "name": item.name,
+    ...(item.url && { "item": item.url })
+  }))
+};
+---
+
+<Layout
+  title={`${video.title} - ${nama}`}
+  description={video.description}
+  preconnectDomains={preconnectDomains}
+  siteName={nama}
+  siteUrl={url}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(schemaWebPage)} />
+  <script type="application/ld+json" set:html={JSON.stringify(schemaVideoObject)} />
+  <script type="application/ld+json" set:html={JSON.stringify(schemaBreadcrumb)} />
+
+  <main class="video-detail-page">
+    <nav class="breadcrumb" aria-label="breadcrumb">
+      <ol>
+        {breadcrumbs.map((item, index) => (
+          <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+            {index > 0 && <span class="separator">/</span>}
+            {item.url ? (
+              <a itemprop="item" href={item.url}>
+                <span itemprop="name">{item.name}</span>
+              </a>
+            ) : (
+              <span itemprop="name">{item.name}</span>
+            )}
+            <meta itemprop="position" content={(index + 1).toString()} />
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <div class="video-player-container">
+      <iframe
+        src={video.embedUrl}
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        loading="eager"
+        width="100%"
+        height="300"
+        title={video.title}
+      ></iframe>
+    </div>
+    <h1 class="video-title">{video.title}</h1>
+
+    <script type="text/javascript" src="https://js.juicyads.com/jp.php?c=947403z2v256s2x2w2e4z2e4&u=https%3A%2F%2Fwww.juicyads.rocks"></script>
+    <script type="text/javascript">
+      var juicy_tags = ['a', 'img'];
+    </script>
+    <script type="text/javascript" src="https://js.juicyads.com/jp.php?c=947403z2v256s2x2w2e4z2e4&u=https%3A%2F%2Fwww.juicyads.rocks"></script>
+    <div class="juicyads-ad-container" style="min-height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: var(--card-bg); border-radius: var(--border-radius-medium); margin-bottom: var(--spacing-unit);">
+      <script type="text/javascript" data-cfasync="false" async src="https://poweredby.jads.co/js/jads.js"></script>
+      <ins id="1055940" data-width="308" data-height="298"></ins>
+      <script type="text/javascript" data-cfasync="false" async>(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':1055940});</script>
+    </div>
+
+    <p class="video-description">{video.description}</p>
+ 
+ {relatedVideos.length > 0 && (
+      <section class="related-videos-section">
+        <h2 class="section-title">Video Terkait {video.title}</h2>
+        <div class="video-grid">
+          {relatedVideos.map((relatedVideo) => (
+            <VideoCard video={relatedVideo} videoDetailPath={`/${slugify(relatedVideo.title)}-${relatedVideo.id}`} />
+          ))}
+        </div>
+      </section>
+    )}
+   
+    {randomVideos.length > 0 && (
+      <section class="random-videos-section">
+        <div class="juicyads-ad-container" style="min-height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: var(--card-bg); border-radius: var(--border-radius-medium); margin-bottom: var(--spacing-unit);">
+          <script type="text/javascript" data-cfasync="false" async src="https://poweredby.jads.co/js/jads.js"></script>
+          <ins id="1055940" data-width="308" data-height="298"></ins>
+          <script type="text/javascript" data-cfasync="false" async>(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':1055940});</script>
+        </div>
+        <h2 class="section-title">Video Pilihan</h2>
+        <div class="video-grid">
+          {randomVideos.map((randomVideo) => (
+            <VideoCard video={randomVideo} videoDetailPath={`/${slugify(randomVideo.title)}-${randomVideo.id}`} />
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+</Layout>
