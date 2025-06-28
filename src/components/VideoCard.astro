@@ -2,23 +2,30 @@
 // src/components/VideoCard.astro
 import { slugify } from '../utils/slugify';
 import type { VideoData } from '../utils/data';
+import { url } from '../utils/site.ts';
 
 export interface Props {
   video: VideoData;
+  // Tambahkan prop opsional ini
+  headingLevel?: 'h2' | 'h3'; 
 }
 
-const { video } = Astro.props;
+// Set default headingLevel ke 'h2'
+const { video, headingLevel = 'h2' } = Astro.props; 
 const videoSlug = slugify(video.title);
 
-
+// Pastikan videoDetailPath terbentuk dengan benar,
+// atau Anda bisa passing langsung dari komponen pemanggil jika lebih fleksibel
+const videoDetailPath = `${url}/${videoSlug}-${video.id}/`;
 
 ---
 
-<a href={`/${videoSlug}-${video.id}/`} class="video-card">
+<a href={videoDetailPath} class="video-card">
   <div class="thumbnail-container">
     <img
       src={video.thumbnail}
       alt={video.title}
+      title={video.title}
       loading="lazy"
       class="video-thumbnail"
     />
@@ -35,7 +42,12 @@ const videoSlug = slugify(video.title);
     )}
   </div>
   <div class="video-info">
-    <h3 class="video-title">{video.title}</h3>
+    {/* Logika kondisional untuk merender H2 atau H3 */}
+    {headingLevel === 'h2' ? (
+      <h2 class="video-title">{video.title}</h2>
+    ) : (
+      <h3 class="video-title">{video.title}</h3>
+    )}
     <p class="video-category">{video.category}</p>
   </div>
 </a>
@@ -45,26 +57,34 @@ const videoSlug = slugify(video.title);
     const videoPreview = card.querySelector('.video-preview');
 
     if (videoPreview) {
+      let playTimeout; // Gunakan timeout untuk menunda pemutaran
+
       card.addEventListener('mouseenter', () => {
-        // Hanya muat dan mainkan jika kartu tidak memiliki kelas error
-        if (!card.classList.contains('video-preview-error')) {
-          const src = videoPreview.getAttribute('data-src');
-          // Hanya set src jika belum diset untuk menghindari reload yang tidak perlu
-          if (src && videoPreview.src !== src) {
-            videoPreview.src = src;
-            videoPreview.load(); // Memuat video
+        // Hapus timeout sebelumnya jika ada
+        clearTimeout(playTimeout); 
+        
+        // Atur timeout untuk memulai pemutaran setelah sedikit penundaan
+        playTimeout = setTimeout(() => {
+          if (!card.classList.contains('video-preview-error')) {
+            const src = videoPreview.getAttribute('data-src');
+            if (src && videoPreview.src !== src) {
+              videoPreview.src = src;
+              videoPreview.load();
+            }
+            videoPreview.play().catch(e => {
+              console.warn('Video playback failed, adding error class:', e);
+              card.classList.add('video-preview-error');
+            });
           }
-          videoPreview.play().catch(e => {
-            // Tangani error jika pemutaran gagal (misal: autoplay diblokir)
-            console.warn('Video playback failed, adding error class:', e);
-            card.classList.add('video-preview-error'); // Tambahkan kelas error juga jika play() gagal
-          });
-        }
+        }, 50); // Tunda 500ms (setengah detik)
       });
 
       card.addEventListener('mouseleave', () => {
-        if (videoPreview && !videoPreview.paused) { // Pastikan videoPreview ada dan sedang tidak paused
+        // Hapus timeout jika mouse keluar sebelum video sempat diputar
+        clearTimeout(playTimeout); 
+        if (videoPreview && !videoPreview.paused) {
           videoPreview.pause();
+          videoPreview.currentTime = 0; // Reset ke awal
         }
       });
     }

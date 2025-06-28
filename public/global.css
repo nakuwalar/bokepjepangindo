@@ -96,7 +96,7 @@ h1 {
   color: var(--primary-color);
 }
 h2 {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 700;
 }
 h3 {
@@ -753,6 +753,7 @@ body.dark-mode .tag-item:hover {
   transition: color 0.3s ease, border-color 0.3s ease;
 }
 
+/* --- Pagination Styles (Combined from search and category) --- */
 .pagination {
   display: flex;
   justify-content: center;
@@ -772,7 +773,40 @@ body.dark-mode .tag-item:hover {
   height: 36px;
   padding: 0 0.5rem;
   font-size: 0.9em;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small); /* Adjusted to small for links */
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  display: inline-flex; /* Ensure it behaves like a flex item */
+  align-items: center;
+  justify-content: center;
 }
+
+.pagination-link:hover {
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-color: var(--primary-color); /* Match border to background on hover */
+}
+
+.pagination-link.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  font-weight: bold;
+  pointer-events: none; /* Nonaktifkan klik pada halaman aktif */
+}
+
+.pagination-link.ellipsis {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--text-color-light);
+  cursor: default;
+  pointer-events: none; /* Pastikan tidak bisa diklik */
+}
+/* --- End of Pagination Styles --- */
 
 .category-list {
   display: grid;
@@ -829,14 +863,14 @@ footer {
 }
 
 .short-video-page .breadcrumb {
-    /* Override default main breadcrumb styles if needed, or let them inherit */
-    padding-left: 0;
-    padding-right: 0;
-    border-bottom: none; /* Remove border from the main breadcrumb */
-    margin-bottom: 1rem;
+  /* Override default main breadcrumb styles if needed, or let them inherit */
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom: none; /* Remove border from the main breadcrumb */
+  margin-bottom: 1rem;
 }
 .short-video-page .breadcrumb ol {
-    justify-content: center; /* Center breadcrumbs on short video page */
+  justify-content: center; /* Center breadcrumbs on short video page */
 }
 
 
@@ -910,7 +944,7 @@ footer {
     font-size: 2rem;
   }
   h2 {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
   }
   h3 {
     font-size: 1.3rem;
@@ -1005,7 +1039,7 @@ footer {
     font-size: 1.7rem;
   }
   h2 {
-    font-size: 1.4rem;
+    font-size: 1.16rem;
   }
   h3 {
     font-size: 1.15rem;
@@ -1097,7 +1131,7 @@ footer {
     font-size: 0.9rem;
   }
   .video-container {
-      max-width: 300px; /* Make it narrower on smaller screens */
+    max-width: 100%; /* Full width on very small screens */
   }
 }
 
@@ -1114,7 +1148,7 @@ footer {
     font-size: 1.5rem;
   }
   h2 {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
   }
   h3 {
     font-size: 1rem;
@@ -1190,6 +1224,6 @@ footer {
     font-size: 0.85rem;
   }
   .video-container {
-      max-width: 100%; /* Full width on very small screens */
+    max-width: 100%; /* Full width on very small screens */
   }
 }

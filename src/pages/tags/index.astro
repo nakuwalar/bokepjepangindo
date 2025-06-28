@@ -27,8 +27,8 @@ allVideos.forEach(video => {
 const sortedTags = Array.from(uniqueTags).sort((a, b) => a.localeCompare(b));
 
 const breadcrumbs = [
-  { name: 'Home', url: '/' },
-  { name: 'Semua Tags', url: '/tags' },
+  { name: 'Home', url: `${url}` },
+  { name: 'Semua Tags', url: `${url}/tags` },
 ];
 
 // Anda bisa menghitung preconnect domains jika Anda menampilkan sesuatu yang memerlukan koneksi eksternal
@@ -72,7 +72,7 @@ let preconnectDomains: string[] = [];
     ) : (
       <div class="tags-grid">
         {sortedTags.map(tag => (
-          <a href={`/video/${slugify(tag)}/`} class="tag-card">
+          <a href={`/video/${slugify(tag)}/1`} class="tag-card">
             {tag}
           </a>
         ))}

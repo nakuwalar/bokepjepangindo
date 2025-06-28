@@ -19,62 +19,75 @@ export async function getStaticPaths() {
 
 const { video, allVideos } = Astro.props;
 
-const numberOfRelatedVideos = 15;
-const relatedVideos: VideoData[] = [];
+const numberOfRelatedVideos = 16;
+let relatedVideos: VideoData[] = []; // Gunakan `let` karena akan diisi bertahap
 
+// 1. Persiapan kata kunci dari judul video saat ini
 const currentVideoTitleKeywords = video.title
   .toLowerCase()
   .split(/\s+/)
-  .filter(word => word.length > 2);
+  .filter(word => word.length > 2 && !['bokep', 'video', 'jepang', 'indo', 'yang', 'dan', 'di', 'ini', 'itu', 'dengan'].includes(word)); // Filter kata umum
 
-if (relatedVideos.length < numberOfRelatedVideos && currentVideoTitleKeywords.length > 0) {
-  const titleMatchedVideos = allVideos.filter(v => {
-    if (v.id === video.id || relatedVideos.some(rv => rv.id === v.id)) {
-      return false;
+// 2. Buat daftar video kandidat untuk terkait, kecuali video saat ini
+const candidateVideos = allVideos.filter(v => v.id !== video.id);
+
+// 3. Beri skor setiap video kandidat berdasarkan relevansi
+const scoredCandidates = candidateVideos.map(v => {
+  let score = 0;
+  const otherVideoTitle = v.title.toLowerCase();
+
+  // Prioritas 1: Kategori yang sama
+  if (v.category === video.category) {
+    score += 100; // Beri skor tinggi untuk kategori yang sama
+  }
+
+  // Prioritas 2: Cocokkan kata kunci di judul
+  currentVideoTitleKeywords.forEach(keyword => {
+    if (otherVideoTitle.includes(keyword)) {
+      score += 5; // Tambah skor untuk setiap kata kunci yang cocok
     }
-
-    const otherVideoTitle = v.title.toLowerCase();
-    return currentVideoTitleKeywords.some(keyword => otherVideoTitle.includes(keyword));
   });
 
-  for (const v of titleMatchedVideos) {
-    if (relatedVideos.length < numberOfRelatedVideos) {
-      relatedVideos.push(v);
-    } else {
-      break;
-    }
+  return { video: v, score };
+});
+
+// 4. Urutkan kandidat berdasarkan skor (tertinggi ke terendah)
+// Jika skor sama, acak urutannya untuk variasi
+scoredCandidates.sort((a, b) => {
+  if (b.score === a.score) {
+    return 0.5 - Math.random(); // Acak jika skor sama
   }
-}
+  return b.score - a.score; // Urutkan berdasarkan skor tertinggi
+});
 
-const sameCategoryVideos = allVideos
-  .filter(v =>
-    v.category === video.category &&
-    v.id !== video.id &&
-    !relatedVideos.some(rv => rv.id === v.id)
-  )
-  .sort(() => 0.5 - Math.random());
-
-for (const v of sameCategoryVideos) {
-  if (relatedVideos.length < numberOfRelatedVideos) {
-    relatedVideos.push(v);
-  } else {
+// 5. Ambil video terkait dari daftar yang sudah diurutkan
+// Pastikan tidak ada duplikasi ID
+const addedVideoIds = new Set<string>();
+for (const scoredV of scoredCandidates) {
+  if (relatedVideos.length >= numberOfRelatedVideos) {
     break;
   }
+  if (!addedVideoIds.has(scoredV.video.id)) {
+    relatedVideos.push(scoredV.video);
+    addedVideoIds.add(scoredV.video.id);
+  }
 }
 
+// 6. Jika masih kurang dari numberOfRelatedVideos, tambahkan video acak
 if (relatedVideos.length < numberOfRelatedVideos) {
   const remainingSlots = numberOfRelatedVideos - relatedVideos.length;
-  const otherVideosForRelated = allVideos.filter(v =>
-    v.id !== video.id &&
-    !relatedVideos.some(rv => rv.id === v.id)
+  const otherVideosForRandom = allVideos.filter(v => 
+    v.id !== video.id && !addedVideoIds.has(v.id)
   );
-  const shuffledOthersForRelated = otherVideosForRelated.sort(() => 0.5 - Math.random());
-  relatedVideos.push(...shuffledOthersForRelated.slice(0, remainingSlots));
+  const shuffledOthersForRandom = otherVideosForRandom.sort(() => 0.5 - Math.random());
+  relatedVideos.push(...shuffledOthersForRandom.slice(0, remainingSlots));
 }
 
-relatedVideos.sort(() => 0.5 - Math.random());
+// Tidak perlu pengacakan terakhir `relatedVideos.sort(() => 0.5 - Math.random());`
+// karena kita sudah melakukan pengacakan saat skor sama dan saat mengisi slot kosong.
 
-const numberOfRandomVideos = 15;
+// --- Logika untuk Random Videos (terpisah dari related videos) ---
+const numberOfRandomVideos = 16; // Jumlah video acak yang berbeda di bagian bawah
 
 const currentAndRelatedVideoIds = new Set([video.id, ...relatedVideos.map(v => v.id)]);
 
@@ -84,12 +97,13 @@ const randomVideos = videosForRandomSelection
   .sort(() => 0.5 - Math.random())
   .slice(0, numberOfRandomVideos);
 
+// --- Logika preconnect Domains ---
 const allDomains = new Set<string>();
 try {
   if (video.thumbnail) allDomains.add(new URL(video.thumbnail).origin);
   if (video.embedUrl) allDomains.add(new URL(video.embedUrl).origin);
 } catch (e) {
-  console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${video.id} (current video):`, e);
+  console.error(`URL thumbnail/video tidak valid untuk video ID ${video.id} (current video):`, e);
 }
 
 relatedVideos.forEach(v => {
@@ -97,7 +111,7 @@ relatedVideos.forEach(v => {
     if (v.thumbnail) allDomains.add(new URL(v.thumbnail).origin);
     if (v.embedUrl) allDomains.add(new URL(v.embedUrl).origin);
   } catch (e) {
-    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${v.id} (related video):`, e);
+    console.error(`URL thumbnail/video tidak valid untuk video ID ${v.id} (related video):`, e);
   }
 });
 
@@ -106,15 +120,15 @@ randomVideos.forEach(v => {
     if (v.thumbnail) allDomains.add(new URL(v.thumbnail).origin);
     if (v.embedUrl) allDomains.add(new URL(v.embedUrl).origin);
   } catch (e) {
-    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${v.id} (random video):`, e);
+    console.error(`URL thumbnail/video tidak valid untuk video ID ${v.id} (random video):`, e);
   }
 });
 
 const preconnectDomains = Array.from(allDomains);
 
 const breadcrumbs = [
-  { name: 'Home', url: '/' },
-  { name: video.category, url: `/category/${slugify(video.category)}/1` },
+  { name: 'Home', url: `${url}` },
+  { name: video.category, url: `${url}/category/${slugify(video.category)}/1` },
   { name: video.title },
 ];
 
@@ -124,9 +138,9 @@ const dateModified = video.dateModified || new Date().toISOString();
 const schemaWebPage = {
   "@context": "https://schema.org",
   "@type": "WebPage",
-  "url": `${url}/${slugify(video.title)}-${video.id}`,
-  "name": `${video.title} - ${nama}`,
-  "description": video.description,
+  "url": `${url}/${slugify(video.title)}-${video.id}/`,
+  "name": `${video.title}`,
+  "description": `${video.description} di ${nama}`,
   "publisher": {
     "@type": "Organization",
     "name": nama,
@@ -143,13 +157,10 @@ const schemaVideoObject = {
   "@context": "https://schema.org",
   "@type": "VideoObject",
   "name": video.title,
-  "description": video.description,
-  "caption": `Nonton ${video.title} di ${nama}`,
+  "description": `${video.description} di ${nama}`,
   "uploadDate": datePublished,
   "embedUrl": video.embedUrl,
   "thumbnailUrl": video.thumbnail,
-  "width": "1920",
-  "height": "1080",
   "publisher": {
     "@type": "Organization",
     "name": nama,
@@ -174,7 +185,7 @@ const schemaBreadcrumb = {
 
 <Layout
   title={`${video.title} - ${nama}`}
-  description={video.description}
+  description={`${video.description} di ${nama}`}
   preconnectDomains={preconnectDomains}
   siteName={nama}
   siteUrl={url}
@@ -187,16 +198,15 @@ const schemaBreadcrumb = {
     <nav class="breadcrumb" aria-label="breadcrumb">
       <ol>
         {breadcrumbs.map((item, index) => (
-          <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+          <li>
             {index > 0 && <span class="separator">/</span>}
             {item.url ? (
-              <a itemprop="item" href={item.url}>
-                <span itemprop="name">{item.name}</span>
+              <a href={item.url}>
+                <span>{item.name}</span>
               </a>
             ) : (
-              <span itemprop="name">{item.name}</span>
+              <span>{item.name}</span>
             )}
-            <meta itemprop="position" content={(index + 1).toString()} />
           </li>
         ))}
       </ol>
@@ -217,29 +227,26 @@ const schemaBreadcrumb = {
     <h1 class="video-title">{video.title}</h1>
 
     <script type="text/javascript" src="https://js.juicyads.com/jp.php?c=947403z2v256s2x2w2e4z2e4&u=https%3A%2F%2Fwww.juicyads.rocks"></script>
-    <script type="text/javascript">
-      var juicy_tags = ['a', 'img'];
-    </script>
+    <script type="text/javascript">      var juicy_tags = ['a', 'img'];    </script>
     <script type="text/javascript" src="https://js.juicyads.com/jp.php?c=947403z2v256s2x2w2e4z2e4&u=https%3A%2F%2Fwww.juicyads.rocks"></script>
     <div class="juicyads-ad-container" style="min-height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: var(--card-bg); border-radius: var(--border-radius-medium); margin-bottom: var(--spacing-unit);">
-      <script type="text/javascript" data-cfasync="false" async src="https://poweredby.jads.co/js/jads.js"></script>
       <ins id="1055940" data-width="308" data-height="298"></ins>
       <script type="text/javascript" data-cfasync="false" async>(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':1055940});</script>
     </div>
 
     <p class="video-description">{video.description}</p>
- 
- {relatedVideos.length > 0 && (
+  
+    {relatedVideos.length > 0 && (
       <section class="related-videos-section">
         <h2 class="section-title">Video Terkait {video.title}</h2>
         <div class="video-grid">
           {relatedVideos.map((relatedVideo) => (
-            <VideoCard video={relatedVideo} videoDetailPath={`/${slugify(relatedVideo.title)}-${relatedVideo.id}`} />
+            <VideoCard video={relatedVideo} videoDetailPath={`/${slugify(relatedVideo.title)}-${relatedVideo.id}/`} headingLevel="h3" />
           ))}
         </div>
       </section>
     )}
-   
+    
     {randomVideos.length > 0 && (
       <section class="random-videos-section">
         <div class="juicyads-ad-container" style="min-height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: var(--card-bg); border-radius: var(--border-radius-medium); margin-bottom: var(--spacing-unit);">
@@ -250,7 +257,7 @@ const schemaBreadcrumb = {
         <h2 class="section-title">Video Pilihan</h2>
         <div class="video-grid">
           {randomVideos.map((randomVideo) => (
-            <VideoCard video={randomVideo} videoDetailPath={`/${slugify(randomVideo.title)}-${randomVideo.id}`} />
+            <VideoCard video={randomVideo} videoDetailPath={`/${slugify(randomVideo.title)}-${randomVideo.id}/`} headingLevel="h3" />
           ))}
         </div>
       </section>

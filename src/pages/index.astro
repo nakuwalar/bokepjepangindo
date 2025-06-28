@@ -4,29 +4,45 @@ import Layout from '../layouts/BaseLayout.astro';
 import VideoCard from '../components/VideoCard.astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
-import { nama, desk, url } from '../utils/site.ts';
+import { nama, desk, url, terbit } from '../utils/site.ts';
 export const prerender = true;
 
 const allVideos: VideoData[] = await getAllVideos();
 
 const videosByCategory: { [key: string]: VideoData[] } = {};
-const numberOfVideosPerCategory = 15;
+const numberOfVideosPerCategory = 16; // Jumlah video acak yang ingin ditampilkan per kategori
 
 allVideos.forEach(video => {
   if (!videosByCategory[video.category]) {
     videosByCategory[video.category] = [];
   }
-  if (videosByCategory[video.category].length < numberOfVideosPerCategory) {
-    videosByCategory[video.category].push(video);
-  }
+  // Tidak perlu membatasi di sini, kita akan mengacak dan mengambil di bawah
+  videosByCategory[video.category].push(video);
 });
 
-const sortedCategories = Object.keys(videosByCategory).sort();
+// --- PERUBAHAN KUNCI DI SINI: Acak video di SETIAP kategori ---
+const finalVideosByCategory: { [key: string]: VideoData[] } = {};
+const allCategoryNames = Object.keys(videosByCategory);
 
-const numberOfRandomVideos = 15;
+allCategoryNames.forEach(categoryName => {
+  const videosInThisCategory = videosByCategory[categoryName];
+  
+  // Acak video di dalam kategori ini
+  const shuffledVideosInThisCategory = videosInThisCategory
+    .sort(() => 0.5 - Math.random());
+  
+  // Ambil sejumlah video acak yang diinginkan
+  finalVideosByCategory[categoryName] = shuffledVideosInThisCategory.slice(0, numberOfVideosPerCategory);
+});
+
+
+const sortedCategories = Object.keys(finalVideosByCategory).sort(); // Urutkan kategori secara alfabetis untuk tampilan
+
+
+const numberOfRandomVideos = 16;
 
 const categoryVideoIds = new Set(
-  Object.values(videosByCategory).flat().map(v => v.id)
+  Object.values(finalVideosByCategory).flat().map(v => v.id) // Gunakan finalVideosByCategory
 );
 
 const videosForRandomSelection = allVideos.filter(video =>
@@ -39,7 +55,7 @@ const randomVideos = videosForRandomSelection
 
 const allDomains = new Set<string>();
 
-Object.values(videosByCategory).flat().forEach(video => {
+Object.values(finalVideosByCategory).flat().forEach(video => { // Gunakan finalVideosByCategory
   try {
     if (video.thumbnail) {
       allDomains.add(new URL(video.thumbnail).origin);
@@ -48,7 +64,7 @@ Object.values(videosByCategory).flat().forEach(video => {
       allDomains.add(new URL(video.embedUrl).origin);
     }
   } catch (e) {
-    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${video.id} (videosByCategory):`, e);
+    console.error(`[ERROR] URL thumbnail/video tidak valid untuk video ID ${video.id} (videosByRandomCategory):`, e);
   }
 });
 
@@ -68,7 +84,7 @@ randomVideos.forEach(video => {
 const preconnectDomains = Array.from(allDomains);
 
 const breadcrumbs = [
-  { name: 'Home', url: '/' },
+  { name: 'Home', url: `${url}` },
 ];
 
 const currentUrl = url;
@@ -96,7 +112,7 @@ const siteDescription = desk;
         <meta itemprop="url" content={`${currentUrl}/logo.png`} />
       </div>
     </div>
-    <meta itemprop="datePublished" content="2025-06-21T00:00:00Z" />
+    <meta itemprop="datePublished" content={terbit}/>
     <meta itemprop="dateModified" content={new Date().toISOString()} />
 
     <section class="hero-section">
@@ -118,24 +134,25 @@ const siteDescription = desk;
       {sortedCategories.length === 0 ? (
         <p class="no-videos-overall">Belum ada video yang tersedia di portal ini.</p>
       ) : (
+        // Menggunakan sortedCategories dan finalVideosByCategory
         sortedCategories.map(categoryName => (
           <div class="category-group">
             <h2 class="category-title">
-              <a href={`/category/${slugify(categoryName)}/1`} class="category-link">
+              <a href={`${currentUrl}/category/${slugify(categoryName)}/1`} class="category-link">
                 {categoryName} &rarr;</a>
             </h2>
             <div class="video-grid">
-              {videosByCategory[categoryName].length === 0 ? (
+              {finalVideosByCategory[categoryName].length === 0 ? (
                 <p class="no-videos-in-category">Tidak ada video dalam kategori ini.</p>
               ) : (
-                videosByCategory[categoryName].map((video) => (
+                finalVideosByCategory[categoryName].map((video) => (
                   <VideoCard video={video} />
                 ))
               )}
             </div>
-            {allVideos.filter(v => v.category === categoryName).length > numberOfVideosPerCategory && (
+            {videosByCategory[categoryName].length > numberOfVideosPerCategory && ( // Cek dari videosByCategory (yang asli, lengkap)
               <div class="view-all-button-container">
-                <a href={`/category/${slugify(categoryName)}/1`} class="view-all-button">Lihat Semua di kategori {categoryName}</a>
+                <a href={`${currentUrl}/category/${slugify(categoryName)}/1`} class="view-all-button">Lihat Semua di kategori {categoryName}</a>
               </div>
             )}
           </div>

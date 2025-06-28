@@ -1,11 +1,11 @@
 {
-  "name": "lagiu",
+  "name": "lagia",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node ./scripts/notify-indexnow.js",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -13,6 +13,7 @@
     "@astrojs/cloudflare": "^10.2.2",
     "@astrojs/sitemap": "^3.4.1",
     "astro": "^4.10.1",
+    "node-fetch": "^3.3.2",
     "react": "^19.1.0"
   }
 }

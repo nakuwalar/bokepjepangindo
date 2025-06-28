@@ -1,6 +1,5 @@
 ---
 // src/pages/video/[query]/[page].astro
-// Page Pencarian Utama dengan Paginasi Berbasis Path Parameter
 import { nama, url, desk } from '../../../utils/site.ts';
 import Layout from '../../../layouts/BaseLayout.astro';
 import VideoCard from '../../../components/VideoCard.astro';
@@ -14,40 +13,109 @@ export async function getStaticPaths() {
 const { query, page } = Astro.params;
 const originalQuery = query ? decodeURIComponent(query) : '';
 const currentPage = page ? parseInt(page) : 1;
-const videosPerPage = 30;
+const videosPerPage = 40;
 
 const searchInput = originalQuery.toLowerCase().trim();
 
-const searchWords = searchInput
-    .replace(/-/g, ' ')
-    .split(/\s+/)
-    .filter(word => word.length > 0);
+// --- Daftar Kata yang Dikecualikan (Stop Words) ---
+const stopWords = new Set([
+  'yang', 'dan', 'atau', 'di', 'ke', 'dari', 'untuk', 'dengan', 'pada', 'adalah',
+  'itu', 'ini', 'mereka', 'dia', 'saya', 'kami', 'kita', 'kamu', 'anda', 'mereka',
+  'tidak', 'bukan', 'akan', 'sudah', 'telah', 'belum', 'ada', 'pun', 'saja', 'juga',
+  'hanya', 'sangat', 'lebih', 'paling', 'saat', 'ketika', 'jika', 'agar', 'supaya',
+  'tetapi', 'namun', 'serta', 'seperti', 'yaitu', 'yakni', 'ialah', 'adapun', 'maka',
+  'oleh', 'sejak', 'tanpa', 'melalui', 'tentang', 'terhadap',
+  'begitu', 'begini', 'sini', 'situ', 'mana', 'siapa', 'apa', 'mengapa',
+  'bagaimana', 'dimana', 'kapan', 'kalau', 'walaupun', 'meskipun', 'bahkan', 'hingga',
+  'sampai', 'baik', 'buruk', 'bokep', 'indo', 'video', 'vidio',
+  // Tambahkan kata-kata lain yang ingin Anda kecualikan
+]);
 
-console.log(`[VIDEO PAGE] Kueri asli dari URL: "${originalQuery}"`);
-console.log(`[VIDEO PAGE] Kata-kata pencarian terurai: ${JSON.stringify(searchWords)}`);
-console.log(`[VIDEO PAGE] Page saat ini: ${currentPage}`);
+// Proses searchInput untuk mendapatkan kata kunci yang bersih
+const searchWords = searchInput
+    .replace(/-/g, ' ') // Ganti dash dengan spasi
+    .split(/\s+/)      // Pisahkan berdasarkan spasi atau lebih
+    .filter(word => word.length > 0 && !stopWords.has(word)); // Filter out stop words
+
 
 let searchResults: VideoData[] = [];
 let preconnectDomains: string[] = [];
 let totalPages = 1;
 let paginatedResults: VideoData[] = [];
+let randomPostsBelowSearch: VideoData[] = [];
 
+const allVideos: VideoData[] = await getAllVideos();
+
+// Logika pencarian hanya berjalan jika ada kata kunci yang valid setelah filter stop words
 if (searchWords.length > 0) {
   try {
-    const allVideos: VideoData[] = await getAllVideos();
+    const scoredResults: { video: VideoData; score: number }[] = [];
 
-    searchResults = allVideos.filter(video => {
-      const videoContent = [
-        video.title.toLowerCase(),
-        video.description.toLowerCase(),
-        typeof video.category === 'string' ? video.category.toLowerCase() : '',
-        typeof video.tags === 'string' ? video.tags.toLowerCase() : ''
-      ].join(' ');
+    allVideos.forEach(video => {
+      const videoTitle = video.title.toLowerCase();
+      const videoDescription = video.description.toLowerCase();
+      const videoCategory = typeof video.category === 'string' ? video.category.toLowerCase() : '';
+      const videoTags = typeof video.tags === 'string' ? video.tags.toLowerCase() : '';
 
-      return searchWords.every(word => videoContent.includes(word));
+      const videoContent = [videoTitle, videoDescription, videoCategory, videoTags].join(' ');
+
+      let score = 0;
+      let matchedWordCount = 0; // Menghitung berapa banyak kata kunci yang cocok
+
+      // Cek apakah video mengandung SETIDAKNYA SATU kata kunci (setelah difilter stop words)
+      const containsAnyWord = searchWords.some(word => {
+        if (videoContent.includes(word)) {
+          matchedWordCount++;
+          return true;
+        }
+        return false;
+      });
+
+      if (containsAnyWord) {
+        // Bonus untuk setiap kata kunci yang cocok (semakin banyak semakin baik)
+        score += matchedWordCount * 20;
+
+        // 1. Kecocokan di Judul (paling relevan)
+        searchWords.forEach(word => {
+          if (videoTitle.includes(word)) {
+            score += 50;
+          }
+        });
+
+        // 2. Kecocokan Frasa Lengkap di Judul (gunakan searchInput asli jika ingin frasa lengkap)
+        // Perhatian: searchInput masih mengandung stop words. Jika Anda hanya ingin frasa dari non-stop words,
+        // Anda perlu merekonstruksi frasa tersebut dari searchWords, atau mempertimbangkan cara lain.
+        // Untuk saat ini, kita biarkan searchInput asli untuk kecocokan frasa lengkap.
+        if (videoTitle.includes(searchInput)) {
+          score += 200;
+        }
+
+        // 3. Kecocokan di Deskripsi
+        searchWords.forEach(word => {
+          if (videoDescription.includes(word)) {
+            score += 10;
+          }
+        });
+        
+        // 4. Kecocokan di Kategori atau Tags
+        searchWords.forEach(word => {
+            if (videoCategory.includes(word) || videoTags.includes(word)) {
+                score += 30;
+            }
+        });
+
+        scoredResults.push({ video, score });
+      }
     });
 
-    searchResults.sort((a, b) => a.title.localeCompare(b.title));
+    searchResults = scoredResults
+      .sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return a.video.title.localeCompare(b.video.title);
+      })
+      .map(item => item.video);
 
     totalPages = Math.ceil(searchResults.length / videosPerPage);
     const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
@@ -56,34 +124,66 @@ if (searchWords.length > 0) {
     const endIndex = startIndex + videosPerPage;
     paginatedResults = searchResults.slice(startIndex, endIndex);
 
-    console.log(`[VIDEO PAGE] Jumlah total hasil: ${searchResults.length}`);
-    console.log(`[VIDEO PAGE] Total halaman: ${totalPages}`);
-    console.log(`[VIDEO PAGE] Hasil paginasi di Page ${validCurrentPage}: ${paginatedResults.length} video`);
+    const numberOfRandomPosts = 12;
+    
+    const allSearchResultIds = new Set(searchResults.map(v => v.id));
 
-    if (paginatedResults.length > 0) {
-      const domainsSet = new Set<string>();
-      paginatedResults.forEach(video => {
-        try {
-          if (video.thumbnail) domainsSet.add(new URL(video.thumbnail).origin);
-          if (video.embedUrl) domainsSet.add(new URL(video.embedUrl).origin);
-        } catch (e) {
-          console.error(`[ERROR] URL tidak valid di JSON untuk video ID ${video.id} (pencarian paginasi):`, e);
-        }
-      });
-      preconnectDomains = Array.from(domainsSet);
-    }
+    const videosNotIncludedInSearch = allVideos.filter(video => 
+        !allSearchResultIds.has(video.id)
+    );
+
+    randomPostsBelowSearch = videosNotIncludedInSearch
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numberOfRandomPosts);
+
+    const domainsSet = new Set<string>();
+    paginatedResults.forEach(video => {
+      try {
+        if (video.thumbnail) domainsSet.add(new URL(video.thumbnail).origin);
+        if (video.embedUrl) domainsSet.add(new URL(video.embedUrl).origin);
+      } catch (e) {
+        console.error(`URL tidak valid di JSON untuk video ID ${video.id} (pencarian paginasi):`, e);
+      }
+    });
+    randomPostsBelowSearch.forEach(video => {
+      try {
+        if (video.thumbnail) domainsSet.add(new URL(video.thumbnail).origin);
+        if (video.embedUrl) domainsSet.add(new URL(video.embedUrl).origin);
+      } catch (e) {
+        console.error(`URL tidak valid di JSON untuk video ID ${video.id} (random posts):`, e);
+      }
+    });
+    preconnectDomains = Array.from(domainsSet);
+
 
   } catch (error) {
-    console.error('[VIDEO PAGE ERROR] Gagal melakukan pencarian:', error);
+    console.error('Gagal melakukan pencarian atau mengambil video acak:', error);
     searchResults = [];
     paginatedResults = [];
+    randomPostsBelowSearch = [];
   }
+} else {
+    // Jika tidak ada query atau semua query adalah stop words, tampilkan video acak
+    const numberOfRandomPosts = 12;
+    randomPostsBelowSearch = allVideos
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numberOfRandomPosts);
+
+    const domainsSet = new Set<string>();
+    randomPostsBelowSearch.forEach(video => {
+      try {
+        if (video.thumbnail) domainsSet.add(new URL(video.thumbnail).origin);
+        if (video.embedUrl) domainsSet.add(new URL(video.embedUrl).origin);
+      } catch (e) {
+        console.error(`URL tidak valid di JSON untuk video ID ${video.id} (random posts - no query):`, e);
+      }
+    });
+    preconnectDomains = Array.from(domainsSet);
 }
 
-// *** PATH CHANGE: Updated baseSearchUrl to use '/video' ***
-const baseSearchUrl = `/video/${originalQuery}`;
 
-// Fungsi helper untuk mengkapitalisasi huruf pertama setiap kata
+const baseSearchUrl = `${url}/video/${originalQuery}`;
+
 function capitalizeWords(str: string): string {
   const words = str
     .replace(/-/g, ' ')
@@ -99,9 +199,10 @@ function capitalizeWords(str: string): string {
 const displayQuery = capitalizeWords(originalQuery);
 
 const breadcrumbs = [
-  { name: 'Home', url: '/' },
-  { name: `${displayQuery} di ${nama}`, url: null },
+  { name: 'Home', url: `${url}` },
+  { name: `Pencarian: ${displayQuery}`, url: null },
 ];
+
 ---
 
 <Layout
@@ -110,14 +211,6 @@ const breadcrumbs = [
   preconnectDomains={preconnectDomains}
 >
   <main class="search-page" itemscope itemtype="http://schema.org/SearchResultsPage">
-    <meta itemprop="url" content={Astro.url.href} />
-    <meta itemprop="name" content={`${displayQuery} di ${nama} | Page ${currentPage}`} />
-    <meta itemprop="description" content={`${displayQuery} ${desk} di ${nama}. Page ${currentPage} dari total ${totalPages} halaman.`} />
-    <meta itemprop="encodingFormat" content="text/html" />
-    <meta itemprop="numberOfItems" content={searchResults.length.toString()} />
-    <meta itemprop="about" content={originalQuery} />
-
-
     <nav class="breadcrumb" aria-label="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
       <ol>
         {breadcrumbs.map((item, index) => (
@@ -137,8 +230,7 @@ const breadcrumbs = [
     </nav>
     <h1 class="search-results-title" itemprop="headline">{`${displayQuery} di ${nama}`}</h1>
 
-
-    {originalQuery === '' ? (
+    {originalQuery === '' || searchWords.length === 0 ? (
       <p class="no-results-message">
         Silakan masukkan kata kunci di kolom pencarian di atas untuk memulai pencarian video.
       </p>
@@ -149,15 +241,26 @@ const breadcrumbs = [
     ) : (
       <div class="video-grid" itemprop="mainContentOfPage">
         {paginatedResults.map((video) => (
-          <VideoCard video={video} videoDetailPath={`/${video.id}/${slugify(video.title)}`} />
+          <VideoCard video={video} videoDetailPath={`/${slugify(video.title)}-${video.id}`} />
         ))}
       </div>
+    )}
+
+    {paginatedResults.length === 0 && randomPostsBelowSearch.length > 0 && (
+      <section class="random-videos-section">
+        <h2 class="section-title">Video Mungkin Anda Suka</h2>
+        <div class="video-grid">
+          {randomPostsBelowSearch.map((video) => (
+            <VideoCard video={video} videoDetailPath={`/${slugify(video.title)}-${video.id}/`} />
+          ))}
+        </div>
+      </section>
     )}
 
     {totalPages > 1 && (
       <nav class="pagination" aria-label="Navigasi Page Pencarian">
         {currentPage > 1 && (
-          <a href={`${baseSearchUrl}/${currentPage - 1}`} class="pagination-link">&laquo; {displayQuery}</a>
+          <a href={`${baseSearchUrl}/${currentPage - 1}`} class="pagination-link">&laquo; Sebelumnya</a>
         )}
         {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p =>
           p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2)
@@ -171,10 +274,11 @@ const breadcrumbs = [
         ))}
         {(currentPage + 2 < totalPages && totalPages > 5) && (currentPage < totalPages - 2) && <span class="pagination-link ellipsis">...</span>}
         {currentPage < totalPages && (
-          <a href={`${baseSearchUrl}/${currentPage + 1}`} class="pagination-link">Next &raquo;</a>
+          <a href={`${baseSearchUrl}/${currentPage + 1}`} class="pagination-link">Berikutnya &raquo;</a>
         )}
       </nav>
     )}
+
   </main>
 </Layout>
 
@@ -182,8 +286,8 @@ const breadcrumbs = [
   .no-results-message {
     text-align: center;
     padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
-    background-color: var(--accent-color);
-    color: white;
+    background-color: var(--card-bg);
+    color: var(--text-color);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     margin: calc(var(--spacing-unit) * 2) auto;
@@ -194,7 +298,55 @@ const breadcrumbs = [
   .pagination-link.ellipsis {
     background-color: transparent;
     border-color: transparent;
-    color: var(--secondary-color);
+    color: var(--text-color-light);
     cursor: default;
+  }
+
+  .random-videos-section {
+    margin-top: calc(var(--spacing-unit) * 3);
+    padding-top: calc(var(--spacing-unit) * 2);
+    border-top: 1px solid var(--border-color);
+  }
+
+  .random-videos-section .section-title {
+    text-align: center;
+    margin-bottom: var(--spacing-unit);
+    color: var(--heading-color);
+    font-size: 1.8em;
+  }
+
+  .search-form-404 {
+    margin-top: calc(var(--spacing-unit) * 2);
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-unit);
+  }
+
+  .search-form-404 p {
+    margin-bottom: var(--spacing-unit-small);
+    color: var(--text-color);
+  }
+
+  .search-form-404 input[type="text"] {
+    padding: 0.7em;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    margin-right: var(--spacing-unit-small);
+    width: 200px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+  }
+
+  .search-form-404 button {
+    padding: 0.7em 1.2em;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .search-form-404 button:hover {
+    background-color: var(--secondary-color-hover);
   }
 </style>

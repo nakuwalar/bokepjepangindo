@@ -2,8 +2,7 @@ User-agent: *
 Disallow: /?s=*
 Disallow: /?q=*
 Disallow: /search/*
-Disallow: /v/*
-Disallow: /c/*
+
 
 Allow: /video/*
 Allow: /category/*

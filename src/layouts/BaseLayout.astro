@@ -18,7 +18,7 @@ const {
 const currentUrl = url;
 const siteDescription = desk;
 
-const ogImageFullUrl = new URL('/logo.png', url).href;
+const ogImageFullUrl = new URL(`${url}/logo.png`, url).href;
 
 const websiteSchema = {
   "@context": "http://schema.org",
@@ -57,8 +57,9 @@ const jsonLdSchemas = [
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/x-icon" href=`${url}/favicon.ico` />
     <meta property="og:title" content={title} />
+    <link rel="canonical" href={Astro.url.href} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={Astro.url.href} />
     <meta property="og:type" content="website" />
@@ -74,19 +75,19 @@ const jsonLdSchemas = [
     ))}
   <script type="application/ld+json" set:html={JSON.stringify(jsonLdSchemas)} />
 
-    <link rel="stylesheet" href="/global.css" />
+    <link rel="stylesheet" href=`${url}/global.css` />
   </head>
   <body>
     <header>
       <nav class="main-nav">
-        <a href="/" class="logo">{siteName}</a>
+        <a href={url} class="logo">{siteName}</a>
         <form id="searchForm" action="/video/" method="get" class="search-form">
           <input type="search" name="query" placeholder="Cari video..." required />
           <button type="submit">Cari</button>
         </form>
         <ul class="nav-links">
-          <li><a href="/">Home</a></li>
-          <li><a href="/category/">Category</a></li>
+          <li><a href={currentUrl}>Home</a></li>
+          <li><a href=`${url}/category/`>Category</a></li>
           <li>
             <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle dark mode">☀️</button>
           </li>
